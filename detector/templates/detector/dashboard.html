@@ -1,0 +1,191 @@
+{% load custom_filters %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Spam/Ham Dashboard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 30px 40px;
+            background-color: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .filters {
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .filters input[type="text"], .filters select {
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+        }
+
+        .filters button {
+            padding: 10px 20px;
+            border-radius: 6px;
+            border: none;
+            background-color: #28a745;
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .filters button:hover {
+            background-color: #218838;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        table th, table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        table th {
+            background-color: #f5f5f5;
+        }
+
+        .ham {
+            color: #155724;
+            background-color: #d4edda;
+            padding: 4px 8px;
+            border-radius: 6px;
+            display:inline-block;
+        }
+
+        .spam {
+            color: #721c24;
+            background-color: #f8d7da;
+            padding: 4px 8px;
+            border-radius: 6px;
+            display:inline-block;
+        }
+
+        .error {
+            color: #856404;
+            background-color: #fff3cd;
+            padding: 4px 8px;
+            border-radius: 6px;
+            display:inline-block;
+        }
+
+        .pagination {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .pagination a {
+            margin: 0 5px;
+            text-decoration: none;
+            color: #007bff;
+        }
+
+        .pagination a:hover {
+            text-decoration: underline;
+        }
+
+        /* Responsive Table */
+        @media screen and (max-width: 700px) {
+            table, tbody, th, td, tr {
+                display: block;
+                width: 100%;
+            }
+            th { display: none; }
+            td { padding: 10px; border: none; position: relative; }
+            td:before { content: attr(data-label); font-weight: bold; display: inline-block; width: 120px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Spam/Ham Dashboard</h2>
+
+        <!-- Filters & Search -->
+        <form method="GET" class="filters">
+            <input type="text" name="search" placeholder="Search message..." value="{{ search_query }}">
+            <select name="filter">
+                <option value="">All</option>
+                <option value="ham" {% if filter_type == 'ham' %}selected{% endif %}>Ham</option>
+                <option value="spam" {% if filter_type == 'spam' %}selected{% endif %}>Spam</option>
+            </select>
+            <select name="model">
+                <option value="">All Models</option>
+                {% for m in models %}
+                    <option value="{{ m }}" {% if model_name == m %}selected{% endif %}>{{ m }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit">Filter</button>
+        </form>
+
+        <!-- Logs Table -->
+        <table>
+            <tr>
+                <th>Time</th>
+                <th>Message</th>
+                {% for m in models %}
+                    <th>{{ m }}</th>
+                {% endfor %}
+            </tr>
+            {% for log in logs %}
+                <tr>
+                    <td data-label="Time">{{ log.created_at|date:"Y-m-d H:i:s" }}</td>
+                    <td data-label="Message">{{ log.message }}</td>
+                    {% for m in models %}
+                        <td data-label="{{ m }}">
+                            {% with pred=log.predictions|get_item:m %}
+                                {% if pred == 'ham' %}
+                                    <span class="ham">Ham ✅</span>
+                                {% elif pred == 'spam' %}
+                                    <span class="spam">Spam ❌</span>
+                                {% else %}
+                                    <span class="error">{{ pred }}</span>
+                                {% endif %}
+                            {% endwith %}
+                        </td>
+                    {% endfor %}
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="{{ models|length|add:2 }}" style="text-align:center;">No messages found.</td>
+                </tr>
+            {% endfor %}
+        </table>
+
+        <!-- Pagination -->
+        <div class="pagination">
+            {% if page_obj.has_previous %}
+                <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if filter_type %}filter={{ filter_type }}&{% endif %}{% if model_name %}model={{ model_name }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
+            {% endif %}
+
+            <span> Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} </span>
+
+            {% if page_obj.has_next %}
+                <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if filter_type %}filter={{ filter_type }}&{% endif %}{% if model_name %}model={{ model_name }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>
